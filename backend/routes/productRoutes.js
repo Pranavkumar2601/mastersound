@@ -16,7 +16,7 @@ const authMiddleware = require("../middleware/authMiddleware");
 // GET /api/products
 // Respond with product list, images converted to presigned URLs
 router.get("/", async (req, res) => {
-  console.log("▶️ HIT GET /api/products");
+  // console.log("▶️ HIT GET /api/products");
   try {
     const products = await getAllProducts();
 
@@ -45,7 +45,7 @@ router.get("/", async (req, res) => {
 
 // GET /api/products/:id
 router.get("/:id", async (req, res) => {
-  console.log(`▶️ HIT GET /api/products/${req.params.id}`);
+  // console.log(`▶️ HIT GET /api/products/${req.params.id}`);
   try {
     const product = await getProductById(req.params.id);
     if (!product) return res.status(404).json({ message: "Not found" });

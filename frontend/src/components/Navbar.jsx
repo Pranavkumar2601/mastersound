@@ -16,7 +16,7 @@ export default function NavBar() {
               // Logo color changed to a prominent olive green
               className="text-2xl font-bold text-lime-700 hover:text-lime-800 transition-colors duration-300"
             >
-              MasterSound
+              Antrivox
             </Link>
           </div>
 
