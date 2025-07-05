@@ -1,4 +1,4 @@
-export const BASE_URL = "http://localhost:5000";
+export const BASE_URL = "https://anritvox-backend.onrender.com";
 
 // Helper: attach authorization header
 function authHeader(token) {
@@ -9,13 +9,13 @@ function authHeader(token) {
 export async function fetchProducts() {
   const res = await fetch(`${BASE_URL}/api/products`);
   if (!res.ok) throw new Error("Failed to load products");
-  return res.json();
+  return res.json(); // images[] are full S3 URLs
 }
 
 export async function fetchProductById(id) {
   const res = await fetch(`${BASE_URL}/api/products/${id}`);
   if (!res.ok) throw new Error("Failed to load product");
-  return res.json();
+  return res.json(); // images[] are full S3 URLs
 }
 
 // Public: Warranty
@@ -47,6 +47,14 @@ export async function submitContact(message) {
   const body = await res.json();
   if (!res.ok) throw new Error(body.message || "Contact submission failed");
   return body;
+}
+
+export async function fetchContactsAdmin(token) {
+  const res = await fetch(`${BASE_URL}/api/contact`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("Failed to load contact submissions");
+  return res.json(); // expects [{ id, name, email, phone, message, created_at }, …]
 }
 
 // Admin: Authentication
