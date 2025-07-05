@@ -1,4 +1,3 @@
-// src/pages/admin/CategoryManagement.jsx
 import React, { useState, useEffect } from "react";
 import {
   fetchCategories,
@@ -24,6 +23,7 @@ export default function CategoryManagement({ token }) {
 
   const loadData = async () => {
     setLoading(true);
+    setError(null); // Clear previous errors on load
     try {
       const [cats, subs] = await Promise.all([
         fetchCategories(token),
@@ -33,6 +33,7 @@ export default function CategoryManagement({ token }) {
       setSubcategories(subs);
     } catch (err) {
       setError("Failed to load data: " + err.message);
+      console.error("Error loading category data:", err);
     } finally {
       setLoading(false);
     }
@@ -54,13 +55,16 @@ export default function CategoryManagement({ token }) {
     setFormLoading(true);
     setError(null);
     try {
-      if (!name.trim()) throw new Error("Name required");
-      if (editCatId) await updateCategory(editCatId, { name }, token);
-      else await createCategory({ name }, token);
+      if (!name.trim()) throw new Error("Category name is required.");
+      if (editCatId) {
+        await updateCategory(editCatId, { name }, token);
+      } else {
+        await createCategory({ name }, token);
+      }
       resetForm();
-      loadData();
+      loadData(); // Re-fetch data to update lists
     } catch (e) {
-      setError(e.message);
+      setError("Failed to save category: " + e.message);
     } finally {
       setFormLoading(false);
     }
@@ -71,432 +75,366 @@ export default function CategoryManagement({ token }) {
     setError(null);
     try {
       if (!name.trim() || !parentId)
-        throw new Error("Name and category required");
+        throw new Error("Subcategory name and parent category are required.");
       const data = { name, category_id: parentId };
-      if (editSubId) await updateSubcategory(editSubId, data, token);
-      else await createSubcategory(data, token);
+      if (editSubId) {
+        await updateSubcategory(editSubId, data, token);
+      } else {
+        await createSubcategory(data, token);
+      }
       resetForm();
-      loadData();
+      loadData(); // Re-fetch data to update lists
     } catch (e) {
-      setError(e.message);
+      setError("Failed to save subcategory: " + e.message);
     } finally {
       setFormLoading(false);
     }
   };
 
   const handleRemoveCat = async (id) => {
-    if (window.confirm("Delete this category?")) {
+    if (
+      window.confirm(
+        "Are you sure you want to delete this category? This will also delete all associated subcategories and products."
+      )
+    ) {
       setFormLoading(true);
+      setError(null);
       try {
         await deleteCategory(id, token);
         loadData();
       } catch (e) {
-        setError(e.message);
+        setError("Failed to delete category: " + e.message);
       } finally {
         setFormLoading(false);
       }
     }
   };
+
   const handleRemoveSub = async (id) => {
-    if (window.confirm("Delete this subcategory?")) {
+    if (window.confirm("Are you sure you want to delete this subcategory?")) {
       setFormLoading(true);
+      setError(null);
       try {
         await deleteSubcategory(id, token);
         loadData();
       } catch (e) {
-        setError(e.message);
+        setError("Failed to delete subcategory: " + e.message);
       } finally {
         setFormLoading(false);
       }
     }
   };
 
+  // Common Tailwind CSS classes for consistent styling
+  const commonInputClasses =
+    "flex-1 p-3 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-lime-600 focus:border-transparent transition-all duration-200 shadow-sm";
+  const primaryButtonClasses =
+    "bg-lime-600 hover:bg-lime-700 text-white px-5 py-2 rounded-lg shadow-md font-semibold transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed";
+  const secondaryButtonClasses =
+    "bg-gray-200 hover:bg-gray-300 text-gray-800 px-5 py-2 rounded-lg shadow-md font-semibold transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed";
+  const editButtonClasses =
+    "text-blue-600 hover:text-blue-800 font-medium transition-colors duration-200";
+  const deleteButtonClasses =
+    "text-red-600 hover:text-red-800 font-medium transition-colors duration-200";
+
   if (loading)
-    return <p className="py-8 text-center text-gray-300">Loading…</p>;
+    return (
+      <div className="text-center py-12 text-gray-700">
+        <p className="text-2xl font-semibold animate-pulse">
+          Loading categories and subcategories...
+        </p>
+      </div>
+    );
 
   return (
-    <div className="space-y-8">
-      {error && <p className="text-red-500">{error}</p>}
+    <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6 sm:p-8 space-y-10 animate-fade-in">
+      <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-8 text-center">
+        Category <span className="text-lime-700">Management</span>
+      </h1>
 
-      {/* Category Form */}
-      <div className="bg-gray-800 p-6 rounded shadow">
-        <h2 className="text-xl text-white mb-4">
-          {editCatId ? "Edit Category" : "Add Category"}
-        </h2>
-        <div className="flex gap-4">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Category name"
-            className="flex-1 p-2 rounded bg-gray-700 text-white"
-            disabled={formLoading}
-          />
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-lg flex items-center justify-between shadow-sm">
+          <p className="text-lg font-medium">{error}</p>
           <button
-            onClick={handleCatSave}
-            className="bg-orange-600 px-4 py-2 rounded text-white"
-            disabled={formLoading}
+            onClick={() => setError(null)}
+            className="text-red-500 hover:text-red-700 font-semibold text-xl"
           >
-            {editCatId ? "Update" : "Create"}
+            &times;
           </button>
-          {editCatId && (
-            <button
-              onClick={resetForm}
-              className="px-4 py-2 bg-gray-600 text-white rounded"
-              disabled={formLoading}
+        </div>
+      )}
+
+      {/* Category Management Section */}
+      <div className="border border-gray-200 rounded-xl shadow-md p-6 bg-gray-50">
+        <h2 className="text-2xl font-semibold text-gray-800 mb-6 border-b pb-3 border-gray-200">
+          {editCatId ? "Edit Category" : "Add New Category"}
+        </h2>
+        <div className="flex flex-col sm:flex-row gap-4 mb-8 items-end">
+          <div className="flex-1 w-full">
+            <label
+              htmlFor="category-name"
+              className="block text-gray-700 text-sm font-medium mb-2"
             >
-              Cancel
+              Category Name
+            </label>
+            <input
+              id="category-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g., Electronics, Home Appliances"
+              className={commonInputClasses}
+              disabled={formLoading}
+            />
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={handleCatSave}
+              className={primaryButtonClasses}
+              disabled={formLoading || !name.trim()}
+            >
+              {editCatId ? "Update Category" : "Create Category"}
             </button>
-          )}
+            {editCatId && (
+              <button
+                onClick={resetForm}
+                className={secondaryButtonClasses}
+                disabled={formLoading}
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        </div>
+
+        <h3 className="text-xl font-semibold text-gray-800 mb-4">
+          Existing Categories
+        </h3>
+        <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  ID
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  Name
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {categories.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan="3"
+                    className="px-4 py-3 text-center text-gray-500"
+                  >
+                    No categories found.
+                  </td>
+                </tr>
+              ) : (
+                categories.map((c) => (
+                  <tr
+                    key={c.id}
+                    className="hover:bg-gray-50 transition-colors duration-200"
+                  >
+                    <td className="px-4 py-3 text-sm text-gray-800">{c.id}</td>
+                    <td className="px-4 py-3 text-sm text-gray-800">
+                      {c.name}
+                    </td>
+                    <td className="px-4 py-3 text-sm space-x-3">
+                      <button
+                        onClick={() => {
+                          setEditCatId(c.id);
+                          setName(c.name);
+                          setEditSubId(null); // Ensure subcategory form is reset
+                          setParentId(""); // Ensure subcategory form is reset
+                        }}
+                        className={editButtonClasses}
+                        disabled={formLoading}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleRemoveCat(c.id)}
+                        className={deleteButtonClasses}
+                        disabled={formLoading}
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {/* Category List */}
-      <div className="bg-gray-800 p-4 rounded shadow overflow-x-auto">
-        <h3 className="text-lg text-white mb-2">Categories</h3>
-        <table className="min-w-full text-left text-gray-200">
-          <thead>
-            <tr>
-              <th className="px-2 py-1">ID</th>
-              <th className="px-2 py-1">Name</th>
-              <th className="px-2 py-1">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {categories.map((c) => (
-              <tr key={c.id} className="border-b border-gray-700">
-                <td className="px-2 py-1">{c.id}</td>
-                <td className="px-2 py-1">{c.name}</td>
-                <td className="px-2 py-1 space-x-2">
-                  <button
-                    onClick={() => {
-                      setEditCatId(c.id);
-                      setName(c.name);
-                    }}
-                    className="text-blue-400"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleRemoveCat(c.id)}
-                    className="text-red-400"
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Subcategory Form */}
-      <div className="bg-gray-800 p-6 rounded shadow">
-        <h2 className="text-xl text-white mb-4">
-          {editSubId ? "Edit Subcategory" : "Add Subcategory"}
+      {/* Subcategory Management Section */}
+      <div className="border border-gray-200 rounded-xl shadow-md p-6 bg-gray-50">
+        <h2 className="text-2xl font-semibold text-gray-800 mb-6 border-b pb-3 border-gray-200">
+          {editSubId ? "Edit Subcategory" : "Add New Subcategory"}
         </h2>
-        <div className="flex gap-4">
-          <select
-            value={parentId}
-            onChange={(e) => setParentId(e.target.value)}
-            className="p-2 rounded bg-gray-700 text-white"
-            disabled={formLoading}
-          >
-            <option value="">Select Category</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Subcategory name"
-            className="flex-1 p-2 rounded bg-gray-700 text-white"
-            disabled={formLoading}
-          />
-          <button
-            onClick={handleSubSave}
-            className="bg-orange-600 px-4 py-2 rounded text-white"
-            disabled={formLoading}
-          >
-            {editSubId ? "Update" : "Create"}
-          </button>
-          {editSubId && (
-            <button
-              onClick={resetForm}
-              className="px-4 py-2 bg-gray-600 text-white rounded"
-              disabled={formLoading}
+        <div className="flex flex-col sm:flex-row gap-4 mb-8 items-end">
+          <div className="flex-1 w-full">
+            <label
+              htmlFor="parent-category"
+              className="block text-gray-700 text-sm font-medium mb-2"
             >
-              Cancel
+              Parent Category
+            </label>
+            <select
+              id="parent-category"
+              value={parentId}
+              onChange={(e) => setParentId(e.target.value)}
+              className={commonInputClasses}
+              disabled={formLoading || categories.length === 0}
+            >
+              <option value="">Select Category</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex-1 w-full">
+            <label
+              htmlFor="subcategory-name"
+              className="block text-gray-700 text-sm font-medium mb-2"
+            >
+              Subcategory Name
+            </label>
+            <input
+              id="subcategory-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g., Laptops, Smartphones"
+              className={commonInputClasses}
+              disabled={formLoading}
+            />
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={handleSubSave}
+              className={primaryButtonClasses}
+              disabled={formLoading || !name.trim() || !parentId}
+            >
+              {editSubId ? "Update Subcategory" : "Create Subcategory"}
             </button>
-          )}
+            {editSubId && (
+              <button
+                onClick={resetForm}
+                className={secondaryButtonClasses}
+                disabled={formLoading}
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        </div>
+
+        <h3 className="text-xl font-semibold text-gray-800 mb-4">
+          Existing Subcategories
+        </h3>
+        <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  ID
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  Name
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  Category
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {subcategories.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan="4"
+                    className="px-4 py-3 text-center text-gray-500"
+                  >
+                    No subcategories found.
+                  </td>
+                </tr>
+              ) : (
+                subcategories.map((sc) => (
+                  <tr
+                    key={sc.id}
+                    className="hover:bg-gray-50 transition-colors duration-200"
+                  >
+                    <td className="px-4 py-3 text-sm text-gray-800">{sc.id}</td>
+                    <td className="px-4 py-3 text-sm text-gray-800">
+                      {sc.name}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-800">
+                      {categories.find((c) => c.id === sc.category_id)?.name ||
+                        "N/A"}
+                    </td>
+                    <td className="px-4 py-3 text-sm space-x-3">
+                      <button
+                        onClick={() => {
+                          setEditSubId(sc.id);
+                          setName(sc.name);
+                          setParentId(sc.category_id);
+                          setEditCatId(null); // Ensure category form is reset
+                        }}
+                        className={editButtonClasses}
+                        disabled={formLoading}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleRemoveSub(sc.id)}
+                        className={deleteButtonClasses}
+                        disabled={formLoading}
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {/* Subcategory List */}
-      <div className="bg-gray-800 p-4 rounded shadow overflow-x-auto">
-        <h3 className="text-lg text-white mb-2">Subcategories</h3>
-        <table className="min-w-full text-left text-gray-200">
-          <thead>
-            <tr>
-              <th className="px-2 py-1">ID</th>
-              <th className="px-2 py-1">Name</th>
-              <th className="px-2 py-1">Category</th>
-              <th className="px-2 py-1">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {subcategories.map((sc) => (
-              <tr key={sc.id} className="border-b border-gray-700">
-                <td className="px-2 py-1">{sc.id}</td>
-                <td className="px-2 py-1">{sc.name}</td>
-                <td className="px-2 py-1">
-                  {categories.find((c) => c.id === sc.category_id)?.name ||
-                    "N/A"}
-                </td>
-                <td className="px-2 py-1 space-x-2">
-                  <button
-                    onClick={() => {
-                      setEditSubId(sc.id);
-                      setName(sc.name);
-                      setParentId(sc.category_id);
-                    }}
-                    className="text-blue-400"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleRemoveSub(sc.id)}
-                    className="text-red-400"
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {/* Tailwind CSS custom animations and font import */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+        .font-inter {
+          font-family: 'Inter', sans-serif;
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+          animation: fadeIn 0.5s ease-out forwards;
+        }
+
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+        .animate-pulse {
+          animation: pulse 1.5s infinite;
+        }
+      `}</style>
     </div>
   );
 }
-
-// import React, { useState, useEffect } from "react";
-// import {
-//   fetchCategories,
-//   createCategory,
-//   updateCategory,
-//   deleteCategory,
-// } from "../../services/api"; // Ensure these are correctly imported
-
-// export default function CategoryManagement({ token }) {
-//   const [categories, setCategories] = useState([]);
-//   const [name, setName] = useState("");
-//   const [editId, setEditId] = useState(null);
-//   const [loading, setLoading] = useState(true); // Added loading state for initial fetch
-//   const [formLoading, setFormLoading] = useState(false); // Loading state for form actions
-//   const [error, setError] = useState(null); // Added error state
-
-//   // Function to load categories
-//   const loadCategories = async () => {
-//     setLoading(true);
-//     setError(null);
-//     try {
-//       const data = await fetchCategories(token);
-//       setCategories(data);
-//     } catch (err) {
-//       setError("Failed to fetch categories: " + err.message);
-//       console.error("Error fetching categories:", err);
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   useEffect(() => {
-//     loadCategories();
-//   }, [token]);
-
-//   const handleSave = async () => {
-//     setFormLoading(true);
-//     setError(null); // Clear previous errors
-//     try {
-//       if (!name.trim()) {
-//         throw new Error("Category name cannot be empty.");
-//       }
-//       if (editId) {
-//         await updateCategory(editId, { name }, token);
-//       } else {
-//         await createCategory({ name }, token);
-//       }
-//       setName("");
-//       setEditId(null);
-//       loadCategories(); // Reload data after save
-//     } catch (e) {
-//       setError("Failed to save category: " + e.message);
-//       console.error("Error saving category:", e);
-//     } finally {
-//       setFormLoading(false);
-//     }
-//   };
-
-//   const handleRemove = async (id) => {
-//     if (window.confirm("Are you sure you want to delete this category?")) {
-//       // Using window.confirm for simplicity in admin panel
-//       setFormLoading(true); // Indicate action is in progress
-//       setError(null);
-//       try {
-//         await deleteCategory(id, token);
-//         loadCategories(); // Reload data after delete
-//       } catch (e) {
-//         setError("Failed to delete category: " + e.message);
-//         console.error("Error deleting category:", e);
-//       } finally {
-//         setFormLoading(false);
-//       }
-//     }
-//   };
-
-//   const commonInputClasses =
-//     "w-full bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 placeholder-gray-400";
-//   const commonButtonClasses =
-//     "bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transform hover:scale-105 transition-all duration-300 ease-in-out";
-
-//   if (loading)
-//     return (
-//       <div className="text-center py-8 text-gray-300">
-//         <p className="text-xl animate-pulse">Loading categories…</p>
-//       </div>
-//     );
-
-//   return (
-//     <div className="bg-gray-800 rounded-2xl shadow-2xl border border-gray-700 p-6 animate-fade-in">
-//       <h1 className="text-3xl md:text-4xl font-bold text-white mb-8">
-//         Category <span className="text-orange-500">Management</span>
-//       </h1>
-
-//       {/* Add/Edit Category Form */}
-//       <div className="mb-8 p-6 bg-gray-900 rounded-xl border border-gray-700 shadow-lg">
-//         <h2 className="text-2xl font-bold text-white mb-6">
-//           {editId ? "Edit Category" : "Add New Category"}
-//         </h2>
-//         <div className="flex flex-col sm:flex-row gap-4 mb-4">
-//           <input
-//             value={name}
-//             onChange={(e) => setName(e.target.value)}
-//             placeholder="Category name"
-//             className={`${commonInputClasses} flex-1`}
-//             disabled={formLoading}
-//           />
-//           <button
-//             onClick={handleSave}
-//             className={commonButtonClasses}
-//             disabled={formLoading || !name.trim()}
-//           >
-//             {formLoading
-//               ? editId
-//                 ? "Updating..."
-//                 : "Adding..."
-//               : editId
-//               ? "Update Category"
-//               : "Add Category"}
-//           </button>
-//           {editId && (
-//             <button
-//               onClick={() => {
-//                 setName("");
-//                 setEditId(null);
-//                 setError(null); // Clear form-related error when canceling edit
-//               }}
-//               className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transform hover:scale-105 transition-all duration-300 ease-in-out"
-//               disabled={formLoading}
-//             >
-//               Cancel Edit
-//             </button>
-//           )}
-//         </div>
-//         {error && (
-//           <p className="text-red-500 text-center mt-4 animate-fade-in">
-//             {error}
-//           </p>
-//         )}
-//       </div>
-
-//       {/* Category List */}
-//       {categories.length === 0 ? (
-//         <p className="text-center text-gray-400 py-8">No categories found.</p>
-//       ) : (
-//         <div className="overflow-x-auto rounded-xl border border-gray-700 shadow-lg">
-//           <table className="min-w-full divide-y divide-gray-700">
-//             <thead className="bg-gray-700">
-//               <tr>
-//                 <th className="px-4 py-3 text-left text-xs font-medium text-orange-400 uppercase tracking-wider">
-//                   ID
-//                 </th>
-//                 <th className="px-4 py-3 text-left text-xs font-medium text-orange-400 uppercase tracking-wider">
-//                   Name
-//                 </th>
-//                 <th className="px-4 py-3 text-left text-xs font-medium text-orange-400 uppercase tracking-wider">
-//                   Actions
-//                 </th>
-//               </tr>
-//             </thead>
-//             <tbody className="bg-gray-800 divide-y divide-gray-700">
-//               {categories.map((c) => (
-//                 <tr
-//                   key={c.id}
-//                   className="hover:bg-gray-700 transition-colors duration-200"
-//                 >
-//                   <td className="px-4 py-3 text-sm text-gray-200">{c.id}</td>
-//                   <td className="px-4 py-3 text-sm text-gray-200">{c.name}</td>
-//                   <td className="px-4 py-3 text-sm space-x-2">
-//                     <button
-//                       onClick={() => {
-//                         setEditId(c.id);
-//                         setName(c.name);
-//                       }}
-//                       className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-full shadow-md transform hover:scale-105 transition-all duration-200 text-xs"
-//                     >
-//                       Edit
-//                     </button>
-//                     <button
-//                       onClick={() => handleRemove(c.id)}
-//                       className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-full shadow-md transform hover:scale-105 transition-all duration-200 text-xs"
-//                     >
-//                       Delete
-//                     </button>
-//                   </td>
-//                 </tr>
-//               ))}
-//             </tbody>
-//           </table>
-//         </div>
-//       )}
-
-//       {/* Tailwind CSS custom animations and font import */}
-//       <style>{`
-//         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-
-//         .font-inter {
-//           font-family: 'Inter', sans-serif;
-//         }
-
-//         @keyframes fadeIn {
-//           from { opacity: 0; transform: translateY(10px); }
-//           to { opacity: 1; transform: translateY(0); }
-//         }
-//         .animate-fade-in {
-//           animation: fadeIn 0.5s ease-out forwards;
-//         }
-
-//         @keyframes pulse {
-//           0%, 100% { opacity: 1; }
-//           50% { opacity: 0.5; }
-//         }
-//         .animate-pulse {
-//           animation: pulse 1.5s infinite;
-//         }
-//       `}</style>
-//     </div>
-//   );
-// }

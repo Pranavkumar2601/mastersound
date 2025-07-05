@@ -5,12 +5,25 @@ import EWarrantyManagement from "./admin/EWarrantyManagement";
 import CategoryManagement from "./admin/CategoryManagement";
 import ProductManagement from "./admin/ProductManagement";
 
+// Import icons for the sidebar
+// You might need to install react-icons: npm install react-icons
+import {
+  FiHome,
+  FiFileText,
+  FiFolder,
+  FiBox,
+  FiLogOut,
+  FiMenu,
+  FiX,
+} from "react-icons/fi";
+
 export default function AdminDashboard() {
   const [section, setSection] = useState("dashboard");
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false); // State for mobile sidebar
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const token = localStorage.getItem("ms_token");
 
+  // --- Existing Logic: DO NOT CHANGE ---
   useEffect(() => {
     if (!token) navigate("/admin/login");
   }, [token, navigate]);
@@ -24,120 +37,114 @@ export default function AdminDashboard() {
     setSection(sec);
     setMobileMenuOpen(false); // Close mobile menu on section selection
   };
+  // --- End Existing Logic ---
+
+  // Helper function to render section content
+  const renderSection = () => {
+    switch (section) {
+      case "dashboard":
+        return <DashboardOverview token={token} />;
+      case "ewarranty":
+        return <EWarrantyManagement token={token} />;
+      case "categories":
+        return <CategoryManagement token={token} />;
+      case "products":
+        return <ProductManagement token={token} />;
+      default:
+        return <DashboardOverview token={token} />;
+    }
+  };
 
   return (
-    // Main container with dark background and Inter font
-    <div className="flex min-h-screen bg-gradient-to-br from-gray-950 to-black text-white font-inter antialiased">
+    // Main container with white background and Inter font
+    <div className="flex min-h-screen bg-gray-50 text-gray-900 font-inter antialiased overflow-hidden">
       {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black bg-opacity-75 sm:hidden transition-opacity duration-300"
+          className="fixed inset-0 z-40 bg-gray-900 bg-opacity-75 sm:hidden transition-opacity duration-300" // Dark overlay for contrast
           onClick={() => setMobileMenuOpen(false)}
         ></div>
       )}
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 shadow-xl border-r border-gray-700 p-6 flex flex-col justify-between
-                   transform transition-transform duration-300 ease-in-out
-                   ${mobileMenuOpen ? "translate-x-0" : "-translate-x-full"}
-                   sm:relative sm:translate-x-0 sm:flex`} // Always visible on sm and larger screens
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-xl border-r border-gray-200 p-6 flex flex-col justify-between
+                     transform transition-transform duration-300 ease-in-out
+                     ${mobileMenuOpen ? "translate-x-0" : "-translate-x-full"}
+                     sm:relative sm:translate-x-0 sm:flex sm:min-w-[16rem]`} // Ensure min-width on desktop
       >
         <div>
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-2xl font-bold text-orange-500 text-center">
-              MasterSound Admin
+          <div className="flex justify-between items-center mb-10">
+            <h2 className="text-3xl font-extrabold text-lime-700 ">
+              Master<span className="text-gray-900">Sound</span>
             </h2>
             {/* Close button for mobile sidebar */}
             <button
               onClick={() => setMobileMenuOpen(false)}
-              className="sm:hidden text-gray-400 hover:text-white focus:outline-none focus:ring-2 focus:ring-orange-500 rounded-md p-1"
+              className="sm:hidden text-gray-600 hover:text-lime-700 focus:outline-none focus:ring-2 focus:ring-lime-600 rounded-md p-1"
               aria-label="Close menu"
             >
-              <svg
-                className="h-6 w-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M6 18L18 6M6 6l12 12"
-                ></path>
-              </svg>
+              <FiX className="h-7 w-7" />
             </button>
           </div>
 
-          {["dashboard", "ewarranty", "categories", "products"].map((sec) => (
-            <button
-              key={sec}
-              onClick={() => handleSectionChange(sec)}
-              className={`block w-full text-left px-4 py-3 mb-3 rounded-xl transition-all duration-300 ease-in-out font-medium
-                ${
-                  section === sec
-                    ? "bg-orange-600 text-white shadow-lg transform scale-100 hover:scale-105"
-                    : "text-gray-300 hover:bg-gray-800 hover:text-orange-400"
-                }`}
-            >
-              {sec === "ewarranty"
-                ? "E-Warranty"
-                : sec.charAt(0).toUpperCase() + sec.slice(1)}
-            </button>
-          ))}
+          <nav className="space-y-3">
+            {[
+              { id: "dashboard", label: "Dashboard", icon: FiHome },
+              { id: "ewarranty", label: "E-Warranty", icon: FiFileText },
+              { id: "categories", label: "Categories", icon: FiFolder },
+              { id: "products", label: "Products", icon: FiBox },
+            ].map((item) => (
+              <button
+                key={item.id}
+                onClick={() => handleSectionChange(item.id)}
+                className={`flex items-center gap-3 w-full text-left px-5 py-3 rounded-xl transition-all duration-300 ease-in-out font-medium text-lg
+                  ${
+                    section === item.id
+                      ? "bg-lime-700 text-white shadow-lg transform translate-x-1 hover:translate-x-2" // Olive green active state with subtle shift
+                      : "text-gray-700 hover:bg-gray-100 hover:text-lime-700" // Lighter hover state
+                  }`}
+              >
+                <item.icon className="h-6 w-6" />
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </nav>
         </div>
         <button
           onClick={handleLogout}
-          className="w-full bg-red-700 hover:bg-red-800 text-white font-bold py-3 px-6 rounded-full shadow-lg transform hover:scale-105 transition-all duration-300 ease-in-out mt-8"
+          className="flex items-center justify-center gap-2 w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transform hover:scale-105 transition-all duration-300 ease-in-out mt-8"
         >
+          <FiLogOut className="h-5 w-5" />
           Logout
         </button>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-4 sm:p-8 bg-black bg-opacity-50 relative overflow-auto">
+      <main className="flex-1 p-4 sm:p-8 bg-gray-100 relative overflow-hidden">
         {/* Hamburger menu for mobile */}
         <div className="flex justify-end sm:hidden mb-4">
           <button
             onClick={() => setMobileMenuOpen(true)}
-            className="text-gray-400 hover:text-white focus:outline-none focus:ring-2 focus:ring-orange-500 rounded-md p-1"
+            className="text-gray-700 hover:text-lime-700 focus:outline-none focus:ring-2 focus:ring-lime-600 rounded-md p-1"
             aria-label="Open menu"
           >
-            <svg
-              className="h-8 w-8"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M4 6h16M4 12h16M4 18h16"
-              ></path>
-            </svg>
+            <FiMenu className="h-8 w-8" />
           </button>
         </div>
 
         {/* Background gradient circles for visual flair in main content area */}
         <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/4 left-1/4 w-80 h-80 bg-orange-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob"></div>
-          <div className="absolute top-1/2 right-1/4 w-72 h-72 bg-gray-700 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob animation-delay-2000"></div>
-          <div className="absolute bottom-1/4 left-1/3 w-64 h-64 bg-orange-600 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob animation-delay-4000"></div>
+          <div className="absolute top-1/4 left-1/4 w-80 h-80 bg-lime-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob"></div>
+          <div className="absolute top-1/2 right-1/4 w-72 h-72 bg-lime-600 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob animation-delay-2000"></div>
+          <div className="absolute bottom-1/4 left-1/3 w-64 h-64 bg-lime-700 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob animation-delay-4000"></div>
         </div>
 
-        <div className="relative z-10 animate-fade-in">
-          {section === "dashboard" && <DashboardOverview token={token} />}
-          {section === "ewarranty" && <EWarrantyManagement token={token} />}
-          {section === "categories" && <CategoryManagement token={token} />}
-          {section === "products" && <ProductManagement token={token} />}
-        </div>
+        {/* Content of the active section */}
+        <div className="relative z-10 animate-fade-in">{renderSection()}</div>
       </main>
 
-      {/* Tailwind CSS custom animations and font import */}
+      {/* Tailwind CSS custom animations and font import (existing, but included for completeness) */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 

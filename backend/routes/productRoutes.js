@@ -1,9 +1,6 @@
-// backend/routes/productRoutes.js
 const express = require("express");
 const router = express.Router();
-const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
+const { upload, presign } = require("../config/s3Upload");
 
 const {
   getAllProducts,
@@ -16,52 +13,62 @@ const {
 } = require("../models/productModel");
 const authMiddleware = require("../middleware/authMiddleware");
 
-// Configure multer
-
-// ─── Ensure uploads/products exists ──────────────────────────
-const uploadDir = path.join(__dirname, "..", "uploads", "products");
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-// ──────────────────────────────────────────────────────────────
-
-// Now configure Multer to use that folder with sanitized filenames
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
-  filename: (req, file, cb) => {
-    const cleanName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
-    cb(null, `${Date.now()}_${cleanName}`);
-  },
-});
-const upload = multer({ storage });
-
 // GET /api/products
+// Respond with product list, images converted to presigned URLs
 router.get("/", async (req, res) => {
+  console.log("▶️ HIT GET /api/products");
   try {
     const products = await getAllProducts();
+
+    for (const p of products) {
+      console.log(`Raw DB values for product ${p.id}:`, p.images);
+      // 1) Normalize to object keys
+      const keys = p.images.map((img) => {
+        if (img.startsWith("http")) {
+          // existing full-URL entry → extract pathname
+          const url = new URL(img);
+          return url.pathname.slice(1); // removes leading '/'
+        }
+        return img; // already a key
+      });
+
+      // 2) Generate signed URLs
+      p.images = await Promise.all(keys.map((key) => presign(key)));
+    }
+
     res.json(products);
   } catch (err) {
-    console.error("Error fetching products:", err);
+    console.error(err);
     res.status(500).json({ message: "Server error" });
   }
 });
 
 // GET /api/products/:id
 router.get("/:id", async (req, res) => {
+  console.log(`▶️ HIT GET /api/products/${req.params.id}`);
   try {
     const product = await getProductById(req.params.id);
     if (!product) return res.status(404).json({ message: "Not found" });
+
+    console.log("Raw DB values for single product:", product.images);
+    const keys = product.images.map((img) => {
+      if (img.startsWith("http")) {
+        const url = new URL(img);
+        return url.pathname.slice(1);
+      }
+      return img;
+    });
+    product.images = await Promise.all(keys.map((key) => presign(key)));
+
     res.json(product);
   } catch (err) {
-    console.error("Error fetching product:", err);
+    console.error(err);
     res.status(500).json({ message: "Server error" });
   }
 });
 
 // POST /api/products
-// Expects multipart/form-data with fields:
-//   name, description, price, quantity, category_id, subcategory_id, serials (JSON array string)
-//   files under 'images'
+// multipart/form-data with images[], serials JSON
 router.post(
   "/",
   authMiddleware,
@@ -76,10 +83,8 @@ router.post(
         category_id,
         subcategory_id,
       } = req.body;
-      // console.log("🔍 [DEBUG] req.body:", req.body);
-      // console.log("🔍 [DEBUG] req.files:", req.files);
 
-      // Parse serial numbers array
+      // Parse serials array
       let serials = [];
       try {
         serials = JSON.parse(req.body.serials || "[]");
@@ -87,7 +92,7 @@ router.post(
         return res.status(400).json({ message: "Invalid serials format" });
       }
 
-      // 1) Create product
+      // 1) Create product record
       const productId = await createProduct({
         name,
         description,
@@ -97,13 +102,12 @@ router.post(
         subcategory_id,
       });
 
-      // 2) Save images
+      // 2) Store image keys
       for (const file of req.files) {
-        const relativePath = path.join("/uploads/products", file.filename);
-        await addProductImage(productId, relativePath);
+        await addProductImage(productId, file.key);
       }
 
-      // 3) Save serial numbers
+      // 3) Store serial numbers
       for (let s of serials) {
         s = s.trim().toUpperCase();
         if (!/^[A-Z0-9]+$/.test(s)) {
@@ -121,7 +125,7 @@ router.post(
 );
 
 // PUT /api/products/:id
-// Similar to POST: can update fields, add new images or serials if provided
+// Update fields, add new images/serials
 router.put(
   "/:id",
   authMiddleware,
@@ -150,13 +154,17 @@ router.put(
 
       // 2) Save any new images
       for (const file of req.files) {
-        const relativePath = path.join("/uploads/products", file.filename);
-        await addProductImage(productId, relativePath);
+        await addProductImage(productId, file.key);
       }
 
-      // 3) Optionally parse & add any new serials
+      // 3) Parse and add new serials if provided
       if (req.body.serials) {
-        let serials = JSON.parse(req.body.serials);
+        let serials = [];
+        try {
+          serials = JSON.parse(req.body.serials);
+        } catch {
+          return res.status(400).json({ message: "Invalid serials format" });
+        }
         for (let s of serials) {
           s = s.trim().toUpperCase();
           if (!/^[A-Z0-9]+$/.test(s)) {
