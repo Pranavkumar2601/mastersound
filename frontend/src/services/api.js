@@ -1,4 +1,5 @@
-export const BASE_URL = "https://anritvox-backend.onrender.com";
+// export const BASE_URL = "https://anritvox-backend.onrender.com";
+export const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 // Helper: attach authorization header
 function authHeader(token) {

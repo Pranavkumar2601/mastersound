@@ -17,7 +17,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// No more local static uploads—S3 handles file hosting
 // app.use("/uploads", express.static("uploads"));
 
 app.use("/api/categories", categoryRoutes);
@@ -35,17 +34,6 @@ app.get("/api/health", async (req, res) => {
   } catch (err) {
     console.error("DB connection error:", err);
     res.status(500).json({ status: "error", message: err.message });
-  }
-});
-
-// Debug endpoint for DB info
-app.get("/api/dbinfo", async (req, res) => {
-  try {
-    const [[{ db }]] = await pool.query("SELECT DATABASE() AS db");
-    const [cols] = await pool.query("SHOW COLUMNS FROM warranty_registrations");
-    res.json({ database: db, columns: cols.map((c) => c.Field) });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
   }
 });
 
